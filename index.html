@@ -1,35 +1,120 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>WebAR Mô Hình Chim - AR.js</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  </head>
-  <body style="margin: 0px; overflow: hidden;">
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng dụng xem Video 360°</title>
     
-    <a-scene embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;">
-      
-      <a-assets>
-        <a-asset-item id="bird-obj" src="./assets/10033_Penguin_v1_iterations-2.obj"></a-asset-item>
-        <a-asset-item id="bird-mtl" src="./assets/10033_Penguin_v1_iterations-2.mtl"></a-asset-item>
-      </a-assets>
-      
-      <a-marker preset="hiro">
-        
-        <a-obj-model 
-          src="#bird-obj" 
-          mtl="#bird-mtl" 
-          position="0 0 0" 
-          scale="0.05 0.05 0.05" 
-          rotation="-90 0 0">
-        </a-obj-model>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
+    <style>
+        /* Giao diện nút bấm Play/Pause đè lên màn hình */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: sans-serif;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        /* Cảnh báo nếu trình duyệt chặn quyền cảm biến */
+        #permission-btn {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: #ff4757;
+            display: none; /* Chỉ hiện trên iOS nếu cần xin quyền */
+        }
+    </style>
+</head>
+<body>
 
-      </a-marker>
-      
-      <a-entity camera></a-entity>
-      
+    <div id="controls">
+        <button class="btn" id="play-btn">Phát Video</button>
+        <button class="btn" id="mute-btn">Bật Âm Thanh</button>
+    </div>
+
+    <button class="btn" id="permission-btn">Kích hoạt Cảm biến (iOS)</button>
+
+    <a-scene loading-screen="enabled: false">
+        
+        <a-assets>
+            <video id="video360" 
+                   src="https://bitdash-a.akamaihd.net/content/playkit/images/bg.mp4" 
+                   preload="auto" 
+                   loop="true" 
+                   crossorigin="anonymous" 
+                   playsinline 
+                   webkit-playsinline>
+            </video>
+        </a-assets>
+
+        <a-videosphere src="#video360" rotation="0 -90 0"></a-videosphere>
+
+        <a-entity camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: true"></a-entity>
+
     </a-scene>
-  </body>
+
+    <script>
+        const video = document.getElementById('video360');
+        const playBtn = document.getElementById('play-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const permissionBtn = document.getElementById('permission-btn');
+
+        // Xử lý nút Play/Pause (Trình duyệt di động bắt buộc user phải tương tác mới cho phát video)
+        playBtn.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                playBtn.innerText = "Tạm Dừng";
+            } else {
+                video.pause();
+                playBtn.innerText = "Phát Video";
+            }
+        });
+
+        // Xử lý bật/tắt âm thanh
+        muteBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            muteBtn.innerText = video.muted ? "Bật Âm Thanh" : "Tắt Âm Thanh";
+        });
+
+        // Đảm bảo video được tắt tiếng lúc đầu để dễ tự động chạy nếu cần
+        video.muted = true;
+
+        // Xử lý xin quyền cảm biến (Đặc biệt quan trọng cho thiết bị iOS từ bản 13+)
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            permissionBtn.style.display = 'block';
+            permissionBtn.addEventListener('click', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            permissionBtn.style.display = 'none';
+                            // Reload lại scene để A-Frame nhận cảm biến
+                            document.querySelector('a-scene').components['look-controls'].setupControls();
+                        } else {
+                            alert('Bạn cần cấp quyền cảm biến để quay được video bằng điện thoại!');
+                        }
+                    })
+                    .catch(console.error);
+            });
+        }
+    </script>
+</body>
 </html>
